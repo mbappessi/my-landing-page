@@ -2,8 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ГдеСервис</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ГдеСервис — карта автосервисов Нижнего Новгорода</title>
+    <meta name="description" content="Карта автосервисов Нижнего Новгорода: 43 СТО с адресами, телефонами, услугами. Найдите ближайший автосервис.">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <!-- Яндекс Метрика -->
     <script type="text/javascript">
@@ -13,160 +18,610 @@
             for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
             k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
         })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=110595955', 'ym');
-
         ym(110595955, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
     </script>
     <noscript><div><img src="https://mc.yandex.ru/watch/110595955" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-    <!-- /Yandex.Metrika counter -->
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: system-ui, sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            min-height: 100vh;
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
+        
+        .header {
+            background: #fff;
+            padding: 12px 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            color: #fff;
-            text-align: center;
-            padding: 20px;
-            position: relative;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-width: 600px;
-        }
-        .logo { font-size: 64px; font-weight: 700; margin-bottom: 16px; }
-        .logo span { color: #e94560; }
-        .sub { font-size: 18px; color: #aaa; margin-bottom: 30px; }
-        .btn {
-            display: inline-block;
-            padding: 14px 40px;
-            background: #e94560;
-            color: #fff;
-            border-radius: 30px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: 0.3s;
-        }
-        .btn:hover { background: #c7364f; }
-        .links {
-            display: flex;
-            gap: 20px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        .links a {
-            color: #888;
-            text-decoration: none;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-        .links a:hover { color: #fff; }
-        .footer { margin-top: 40px; font-size: 14px; color: #333; }
-
-        .cookie-notice {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(26, 26, 46, 0.95);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(233, 69, 96, 0.3);
-            padding: 12px 24px;
-            border-radius: 16px;
-            font-size: 13px;
-            color: #ccc;
-            z-index: 9999;
-            max-width: 90%;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-            text-align: center;
-            opacity: 0;
-            transform: translateX(-50%) translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
-            pointer-events: none;
-        }
-        .cookie-notice.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-            pointer-events: auto;
-        }
-        .cookie-notice a {
-            color: #e94560;
-            text-decoration: underline;
-            white-space: nowrap;
-        }
-        .cookie-notice .close-btn {
-            background: none;
-            border: none;
-            color: #666;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 0 4px;
-            line-height: 1;
-            transition: 0.2s;
+            z-index: 10;
             flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .cookie-notice .close-btn:hover { color: #fff; }
+        .logo { font-size: 20px; font-weight: 700; color: #1a1a2e; cursor: pointer; }
+        .logo span { color: #e94560; }
+        
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .header-stats {
+            font-size: 13px; color: #666; background: #f5f5f5;
+            padding: 6px 12px; border-radius: 16px; font-weight: 500;
+        }
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 20px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: 0.2s; white-space: nowrap; text-decoration: none; display: inline-block;
+        }
+        .btn-primary { background: #e94560; color: #fff; }
+        .btn-primary:hover { background: #c7364f; }
+        .btn-vk { background: #0077FF; color: #fff; }
+        .btn-vk:hover { background: #0066DD; }
 
-        @media (max-width: 480px) {
-            .cookie-notice {
-                bottom: 16px;
-                padding: 10px 16px;
-                font-size: 12px;
-                width: 95%;
-            }
-            .cookie-notice a { white-space: normal; }
+        .map-container { flex: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+
+        /* Попап */
+        .custom-popup .popup-name { font-weight: 700; font-size: 16px; color: #1a1a2e; margin-bottom: 4px; }
+        .custom-popup .popup-address { font-size: 13px; color: #666; margin: 2px 0; }
+        .custom-popup .popup-phone { font-size: 15px; color: #e94560; font-weight: 600; margin: 6px 0; }
+        .custom-popup .popup-phone a { color: #e94560; text-decoration: none; }
+        .custom-popup .popup-services { 
+            font-size: 11px; color: #555; margin: 8px 0; 
+            padding: 6px; background: #f9f9f9; border-radius: 8px;
+            max-height: 140px; overflow-y: auto; line-height: 1.6;
+        }
+        .custom-popup .popup-services span {
+            display: inline-block; background: #e8e8e8;
+            padding: 2px 8px; border-radius: 10px; margin: 2px; font-size: 10px;
+        }
+        .popup-links { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .popup-links .popup-link {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            text-decoration: none; font-size: 12px; font-weight: 600; transition: 0.2s;
+        }
+        .popup-link-vk { background: #0077FF; color: #fff; }
+        .popup-link-vk:hover { background: #0066DD; }
+        .popup-link-web { background: #f0f0f0; color: #333; }
+        .popup-link-web:hover { background: #e0e0e0; }
+
+        /* Футер */
+        .footer {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(255,255,255,0.95); padding: 8px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 8px; font-size: 11px; color: #555;
+            z-index: 1000; backdrop-filter: blur(4px); border-top: 1px solid #e0e0e0;
+        }
+        .footer a { color: #e94560; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .footer .links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .footer .copy { color: #999; white-space: nowrap; }
+
+        .yandex-attribution {
+            position: absolute; bottom: 50px; right: 10px; z-index: 999;
+            font-size: 10px; background: rgba(255,255,255,0.85);
+            padding: 2px 8px; border-radius: 4px; color: #333; pointer-events: none;
+        }
+        .yandex-attribution a { pointer-events: auto; color: #cc0000; text-decoration: none; font-weight: 500; }
+
+        @media (max-width: 600px) {
+            .logo { font-size: 17px; }
+            .btn { font-size: 12px; padding: 6px 12px; }
+            .header-stats { font-size: 11px; padding: 4px 10px; }
+            .footer { font-size: 10px; padding: 6px 12px; flex-direction: column; text-align: center; }
+            .footer .links { justify-content: center; gap: 10px; }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="logo">Где<span>Сервис</span></div>
-        <div class="sub">
-            Поиск и выбор автосервисов по отзывам.<br>
-            Сайт в разработке.
+    <div class="header">
+        <div class="logo" onclick="location.reload()">Где<span>Сервис</span></div>
+        <div class="header-actions">
+            <span class="header-stats">🔧 <span id="serviceCount">43</span> автосервиса в Нижнем Новгороде</span>
+            <a href="https://vk.com/gdeservic" target="_blank" rel="noopener" class="btn btn-vk">💬 Обсуждения в ВК</a>
         </div>
-        <a href="https://vk.com/gdeservic" class="btn" target="_blank">Сообщество Вконтакте</a>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+        <div class="yandex-attribution">
+            <a href="https://yandex.ru/legal/maps_api/" target="_blank" rel="noopener">Условия Яндекс Карт</a>
+        </div>
+    </div>
+
+    <div class="footer">
         <div class="links">
             <a href="/privacy.html">Политика конфиденциальности</a>
             <a href="/agreement.html">Пользовательское соглашение</a>
         </div>
-        <div class="footer">© 2026 ГдеСервис</div>
+        <div class="copy">© 2026 ГдеСервис</div>
     </div>
 
-    <!-- ===== УВЕДОМЛЕНИЕ ===== -->
-    <div class="cookie-notice" id="cookieNotice">
-        <span>
-            🍪 Мы используем файлы cookie и Яндекс Метрику для сбора статистики.
-            Подробнее в <a href="/privacy.html">Политике конфиденциальности</a>.
-        </span>
-        <button class="close-btn" onclick="closeNotice()">✕</button>
-    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <script>
-        // ===== УВЕДОМЛЕНИЕ =====
-        const notice = document.getElementById('cookieNotice');
+        const YANDEX_API_KEY = '8f80bbc1-6346-4033-9f1a-30cdd4f1a211';
+        const DEFAULT_CENTER = [56.297, 43.935]; // центр Нижнего Новгорода
+        const DEFAULT_ZOOM = 12;
 
-        function closeNotice() {
-            notice.classList.remove('show');
-            localStorage.setItem('cookiesAccepted', 'true');
+        // 43 сервиса (данные из OSM)
+        const services = [
+            {
+                name: 'Профиль-НН',
+                address: 'Порт-Артурская улица, 9 к14',
+                lat: 56.2964586, lon: 43.9132614,
+                phone: '+7 (831) 266-86-91',
+                website: 'https://profil-nn.obiz.ru/',
+                vk: 'https://vk.com/topic-240135406',
+                services_list: 'Легковой автосервис, Ремонт МКПП, Ремонт ходовой части автомобиля, Ремонт бензиновых двигателей, Ремонт инжекторов, Развал-схождение, Замена масла, Ремонт карбюраторов, Установка и ремонт автооптики'
+            },
+            {
+                name: 'Техцентр Луидор',
+                address: 'ул. Ларина, 18',
+                lat: 56.239529, lon: 43.999971,
+                phone: '+7 (831) 266-16-52',
+                website: 'https://luidor-sto.ru',
+                vk: 'https://vk.com/topic-240135406_67384868',
+                services_list: 'Легковой автосервис, Грузовой автосервис, Запчасти для отечественных авто, Запчасти для иномарок, Шиномонтаж, Тюнинг, Ремонт ходовой части автомобиля, Развал-схождение, Ремонт бензиновых двигателей, Запчасти для грузовых авто, Запчасти для спецтехники, Запчасти для общественного транспорта, Обслуживание автомобильных климатических систем, Ремонт стартеров и генераторов, Автохимия, Автоаксессуары, Ремонт дизельной топливной системы, Спецавтооборудование, Автосигнализации, Установка и ремонт автостёкол, Газовое оборудование для авто, Ремонт выхлопных систем, Ремонт электронных систем авто, Пункты техосмотра, Хранение шин, Ремонт АКПП, Ремонт МКПП'
+            },
+            {
+                name: 'Автомастер',
+                address: 'улица Героя Советского Союза Поющева, 22/1',
+                lat: 56.252172, lon: 43.877617,
+                phone: '+7 (495) 445-03-45',
+                website: 'https://avtma.ru/',
+                vk: 'https://vk.com/topic-240135406_67384870',
+                services_list: 'Сервисное обслуживание и ремонт автобусов, грузовиков, коммерческого транспорта, узлов и агрегатов'
+            },
+            {
+                name: 'Сельхозводстрой',
+                address: 'ул. Ларина, 8а',
+                lat: 56.24126, lon: 43.9856822,
+                phone: '+7 (908) 742-13-22',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67384875',
+                services_list: 'Легковой автосервис, Кузовной ремонт, Ремонт стартеров и генераторов, Ремонт ходовой части автомобиля, Ремонт бензиновых двигателей, Замена масла, Развал-схождение, Ремонт МКПП, Ремонт выхлопных систем, Грузовой автосервис, Ремонт инжекторов, Установка и ремонт автооптики, Компьютерная диагностика автомобилей'
+            },
+            {
+                name: 'Ямз 77',
+                address: 'улица Героя Советского Союза Поющева, 22/1',
+                lat: 56.252172, lon: 43.877647,
+                phone: '+7 (920) 363-28-77',
+                website: 'https://frc77.ru/',
+                vk: 'https://vk.com/topic-240135406_67384881',
+                services_list: 'Агрегатный ремонт двигателя ЯМЗ, Капитальный ремонт двигателя, Восстановление V-образных двигателей, Опрессовка ГБЦ'
+            },
+            {
+                name: 'Тойота Центр Нижний Новгород Юг',
+                address: 'ул. Ларина, 30',
+                lat: 56.2374181, lon: 44.0174426,
+                phone: '+7 (831) 425-99-99',
+                website: 'https://toyotann.ru',
+                vk: 'https://vk.com/topic-240135406_67384887',
+                services_list: 'Официальный дилер Toyota, ТО, диагностика, кузовной ремонт, оригинальные запчасти'
+            },
+            {
+                name: 'Приволжский',
+                address: 'Базовый проезд, 3 к2',
+                lat: 56.3033702, lon: 43.8681588,
+                phone: '+7 (831) 414-66-99',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67384890',
+                services_list: 'Легковой автосервис, Развал-схождение, Ремонт ходовой части автомобиля, Автозвук, Ремонт стартеров и генераторов, Ремонт бензиновых двигателей, Ремонт АКПП, Ремонт МКПП, Ремонт инжекторов, Ремонт выхлопных систем, Замена масла, Автохимия, Ремонт карбюраторов'
+            },
+            {
+                name: 'Гранд-НН',
+                address: 'Базовый проезд, 3 к2',
+                lat: 56.303502, lon: 43.868468,
+                phone: '+7 (831) 220-44-54',
+                website: 'https://mb-star.ru/',
+                vk: 'https://vk.com/topic-240135406_67384892',
+                services_list: 'Легковой автосервис, Кузовной ремонт, Ремонт ходовой части автомобиля, Ремонт АКПП, Обслуживание автомобильных климатических систем, Ремонт дизельных двигателей, Ремонт бензиновых двигателей, Ремонт стартеров и генераторов, Ремонт выхлопных систем, Ремонт МКПП, Замена масла, Развал-схождение'
+            },
+            {
+                name: 'Дитас',
+                address: 'Базовый проезд, 3 к2',
+                lat: 56.303502, lon: 43.868408,
+                phone: '+7 (901) 870-14-14',
+                website: 'https://ditasnn.ru/',
+                vk: 'https://vk.com/topic-240135406_67384897',
+                services_list: 'Обслуживание и ремонт топливных систем Евро-3, ГАЗ, МАЗ, ПаЗ, КамАз, Common Rail BOSCH, DELPHI, SIEMENS, АЗПИ, DENSO, Диагностика и ремонт ТНВД, форсунок, регуляторов давления, двигателя CUMMINS'
+            },
+            {
+                name: 'Каравто',
+                address: 'улица Тимирязева, 23а',
+                lat: 56.3063614, lon: 43.9920035,
+                phone: '+7 (905) 011-77-72',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67384903',
+                services_list: 'Кузовной ремонт, Шиномонтаж, Ремонт стартеров и генераторов'
+            },
+            {
+                name: 'Кольчуга',
+                address: 'Салганская улица, 9Б',
+                lat: 56.3024144, lon: 44.014434,
+                phone: '+7 (831) 281-81-02',
+                website: 'https://kolchuga52.ru',
+                vk: 'https://vk.com/topic-240135406_67384906',
+                services_list: 'Ремонт двигателя, Ремонт тормозной системы, Ремонт выхлопной системы, Ремонт автоэлектрики, Ремонт системы рулевого управления, Ремонт ходовой части автомобиля, Ремонт КПП и системы трансмиссии'
+            },
+            {
+                name: 'БЦР моторс (Казанское)',
+                address: 'Казанское шоссе, 6Б',
+                lat: 56.29289, lon: 44.075872,
+                phone: '+7 (831) 281-00-00',
+                website: 'https://service-bcr.ru',
+                vk: 'https://vk.com/topic-240135406_67384916',
+                services_list: 'Диагностика, Ремонт подвески, Развал-схождение, Ремонт рулевых реек, Стекла и фары, Тормозная система, Трансмиссия, Агрегатный ремонт, Выхлопная система'
+            },
+            {
+                name: 'БЦР моторс (Гагарина)',
+                address: 'пр. Гагарина, 29Д',
+                lat: 56.290775, lon: 43.981064,
+                phone: '+7 (831) 220-00-11',
+                website: 'https://service-bcr.ru',
+                vk: 'https://vk.com/topic-240135406_67384920',
+                services_list: 'Диагностика, Ремонт подвески, Развал-схождение, Ремонт рулевых реек, Стекла и фары, Тормозная система, Трансмиссия, Агрегатный ремонт, Выхлопная система'
+            },
+            {
+                name: 'Масленыч',
+                address: 'Деловая, 8а',
+                lat: 56.305264, lon: 44.064799,
+                phone: '8 (800) 200-82-71',
+                website: 'https://maslenych.ru',
+                vk: 'https://vk.com/topic-240135406_67384924',
+                services_list: 'Замена масла, диагностика, техническое обслуживание'
+            },
+            {
+                name: 'МКС',
+                address: 'Деловая, 8б',
+                lat: 56.305352, lon: 44.063688,
+                phone: '+7 (909) 295-60-36',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67384927',
+                services_list: 'Легковой автосервис, Ремонт ходовой части автомобиля, Ремонт дизельных двигателей, Ремонт бензиновых двигателей, Ремонт АКПП, Шиномонтаж, Развал-схождение'
+            },
+            {
+                name: 'Автосервис на Волнистой',
+                address: 'Волнистая, 30',
+                lat: 56.3347947, lon: 43.8311088,
+                phone: '+7 (902) 685-94-45',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67384930',
+                services_list: 'Ремонт бензиновых двигателей, Ремонт ходовой части автомобиля, Кузовной ремонт'
+            },
+            {
+                name: 'Автосервис ТКЦ',
+                address: 'пр. Ленина, 88Б',
+                lat: 56.2582542, lon: 43.9039898,
+                phone: '+7 (831) 253-93-63',
+                website: 'https://tkcgazato.ru/service-maintenance',
+                vk: 'https://vk.com/topic-240135406_67384936',
+                services_list: 'Легковой автосервис, Ремонт ходовой части автомобиля, Ремонт стартеров и генераторов, Замена масла, Развал-схождение, Ремонт МКПП, Грузовой автосервис, Ремонт бензиновых двигателей, Ремонт спецтехники, Ремонт автобусов, Ремонт дизельных двигателей, Пункты техосмотра'
+            },
+            {
+                name: 'Реномаг (Ошарская)',
+                address: 'Ошарская, 78а',
+                lat: 56.3107711, lon: 44.0186469,
+                phone: '8 (800) 350-00-12',
+                website: 'https://renomag-nn.ru',
+                vk: 'https://vk.com/topic-240135406_67384942',
+                services_list: 'Легковой автосервис, Запчасти для иномарок, Ремонт бензиновых двигателей, Ремонт стартеров и генераторов, Ремонт ходовой части автомобиля, Ремонт дизельных двигателей, Шиномонтаж, Развал-схождение, Ремонт электронных систем авто, Компьютерная диагностика автомобилей, Обслуживание автомобильных климатических систем, Автохимия, Ремонт МКПП, Автомобильные аккумуляторы, Хранение шин'
+            },
+            {
+                name: 'Реномаг (Бурнаковская)',
+                address: 'ул. Бурнаковская, 3',
+                lat: 56.341202, lon: 43.920762,
+                phone: '8 (800) 350-00-12',
+                website: 'https://renomag-nn.ru',
+                vk: 'https://vk.com/topic-240135406_67384944',
+                services_list: 'Легковой автосервис, Запчасти для иномарок, Ремонт бензиновых двигателей, Ремонт стартеров и генераторов, Ремонт ходовой части автомобиля, Ремонт дизельных двигателей, Шиномонтаж, Развал-схождение, Ремонт электронных систем авто, Компьютерная диагностика автомобилей, Обслуживание автомобильных климатических систем, Автохимия, Ремонт МКПП, Автомобильные аккумуляторы, Хранение шин'
+            },
+            {
+                name: 'Сервис-центр ElPacha',
+                address: 'Ларина, 13',
+                lat: 56.2385301, lon: 43.9941559,
+                phone: '+7 (831) 423-92-85',
+                website: 'https://elpacha.ru/',
+                vk: 'https://vk.com/topic-240135406_67384948',
+                services_list: 'Тонирование автостёкол, Кузовной ремонт, Детейлинг, Ремонт вмятин'
+            },
+            {
+                name: 'СанРено',
+                address: 'Ларина, 13',
+                lat: 56.23848, lon: 43.9942,
+                phone: '+7 (831) 280-99-54',
+                website: 'https://san-reno.ru/',
+                vk: 'https://vk.com/topic-240135406_67384954',
+                services_list: 'Легковой автосервис, Ремонт дизельных двигателей, Ремонт бензиновых двигателей, Обслуживание автомобильных климатических систем, Шиномонтаж, Развал-схождение, Ремонт дизельной топливной системы, Ремонт стартеров и генераторов, Запчасти для иномарок, Контрактные автозапчасти, Автосигнализации, Замена масла, Ремонт ходовой части автомобиля, Ремонт электронных систем авто, Установка и ремонт автостёкол, Установка и ремонт автооптики, Ремонт инжекторов, Ремонт АКПП, Ремонт МКПП, Кузовной ремонт, Компьютерная диагностика автомобилей, Пункты техосмотра, Ремонт выхлопных систем, Резка и ремонт автозеркал, Тюнинг, Ремонт подушек безопасности, Автомойки, Ремонт рулевых реек, Хранение шин, Ремонт электроавтомобилей'
+            },
+            {
+                name: 'Шестеренка',
+                address: 'Ларина, 13',
+                lat: 56.23858, lon: 43.9941,
+                phone: '+7 (831) 466-60-73',
+                website: 'https://service.shesterenka.ru/',
+                vk: 'https://vk.com/topic-240135406_67384958',
+                services_list: 'Тюнинг автомобиля, Замена технических жидкостей, Электротехнические работы, Диагностика автомобиля, Слесарные работы, Шиномонтаж'
+            },
+            {
+                name: 'Абт-Сервис',
+                address: 'Вторчермета, 119п1',
+                lat: 56.310667, lon: 43.857145,
+                phone: '+7 (831) 415-25-63',
+                website: 'http://www.abtservice.ru/',
+                vk: 'https://vk.com/topic-240135406_67384967',
+                services_list: 'Ремонт выхлопных систем'
+            },
+            {
+                name: 'Газель-сервис',
+                address: 'Ларина, 13',
+                lat: 56.23843, lon: 43.99425,
+                phone: '+7 (831) 423-92-32',
+                website: 'https://газель-сервис.рф',
+                vk: 'https://vk.com/topic-240135406_67384973',
+                services_list: 'Легковой автосервис, Ремонт бензиновых двигателей, Грузовой автосервис, Ремонт ходовой части автомобиля, Развал-схождение, Ремонт стартеров и генераторов, Ремонт дизельных двигателей, Ремонт дизельной топливной системы'
+            },
+            {
+                name: 'Моторный центр на Федосеенко',
+                address: 'Федосеенко, 51',
+                lat: 56.3408451, lon: 43.810634,
+                phone: '+7 (831) 266-02-37',
+                website: 'https://motornn.ru/',
+                vk: 'https://vk.com/topic-240135406_67384994',
+                services_list: 'Капитальный ремонт двигателя, Компьютерная диагностика двигателя, Независимая экспертиза двигателя, Комплексный ремонт ГБЦ, Ремонт блока цилиндров, Шлифовка коленчатого вала, Сварочные работы, Продажа запчастей'
+            },
+            {
+                name: 'Сормович',
+                address: 'улица Ефремова, 50а',
+                lat: 56.3568984, lon: 43.8606959,
+                phone: '+7 (960) 188-67-27',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67385027',
+                services_list: 'Легковой автосервис, Ремонт ходовой части автомобиля, Ремонт стартеров и генераторов, Контрактные автозапчасти, Ремонт бензиновых двигателей, Компьютерная диагностика автомобилей, Ремонт дизельных двигателей, Запчасти для иномарок'
+            },
+            {
+                name: 'Bestway',
+                address: 'улица Академика Сахарова, 3',
+                lat: 56.2810109, lon: 44.0356596,
+                phone: '+7 (831) 288-34-67',
+                website: 'https://www.bestwayservice.ru/',
+                vk: 'https://vk.com/topic-240135406_67385036',
+                services_list: 'Легковой автосервис, Компьютерная диагностика автомобилей, Ремонт ходовой части автомобиля, Замена масла, Ремонт бензиновых двигателей, Запчасти для иномарок, Автохимия, Ремонт дизельных двигателей, Развал-схождение, Обслуживание автомобильных климатических систем, Ремонт АКПП, Ремонт МКПП, Ремонт стартеров и генераторов, Ремонт выхлопных систем, Ремонт инжекторов, Ремонт электронных систем авто, Ремонт карбюраторов'
+            },
+            {
+                name: 'Ритмобиль',
+                address: 'Удмуртская, 41в',
+                lat: 56.2929138, lon: 43.8764442,
+                phone: '+7 (903) 056-90-96',
+                website: 'https://ritmobil.ru/',
+                vk: 'https://vk.com/topic-240135406_67385043',
+                services_list: 'Тонировка, Установка автосигнализации, Установка автозвука, Шумоизоляция автомобиля'
+            },
+            {
+                name: 'Дизель Старт',
+                address: 'улица Федосеенко, 49д',
+                lat: 56.340146, lon: 43.812777,
+                phone: '+7 (920) 253-05-50',
+                website: 'https://dieselstart52.ru/',
+                vk: 'https://vk.com/topic-240135406_67385048',
+                services_list: 'Ремонт дизельной топливной системы'
+            },
+            {
+                name: 'Стагер',
+                address: 'Сормовское шоссе, 24Р',
+                lat: 56.335973, lon: 43.8888979,
+                phone: '+7 (831) 275-92-22',
+                website: 'https://stagernn.ru',
+                vk: 'https://vk.com/topic-240135406_67385053',
+                services_list: 'Диагностика и ремонт стартеров, Ремонт систем охлаждения и отопления, Ремонт компрессоров тормозных систем, Диагностика и ремонт генераторов, Ремонт электромоторов, Ремонт радиаторов и топливных баков, Услуги автоэлектрика, Обслуживание АКБ, Ремонт топливной системы и бензонасосов, Услуги 3D-печати'
+            },
+            {
+                name: 'Альфа',
+                address: 'Коминтерна, 39E к1',
+                lat: 56.346512, lon: 43.890795,
+                phone: '+7 (831) 266-74-09',
+                website: 'https://alfa-52.ru',
+                vk: 'https://vk.com/topic-240135406_67385059',
+                services_list: 'Диагностика и ремонт подвески, Плановое ТО и замена масел, Развал-схождение 3D, Диагностика двигателя, Ремонт двигателя, Ремонт коробки передач, Промывка инжектора, Заправка кондиционера автомобиля'
+            },
+            {
+                name: 'Конкурент',
+                address: 'Коминтерна, 39Б к1',
+                lat: 56.3467919, lon: 43.8910716,
+                phone: '+7 (831) 230-37-38',
+                website: 'https://konkurent-auto.ru',
+                vk: 'https://vk.com/topic-240135406_67385065',
+                services_list: 'Легковой автосервис, Ремонт инжекторов, Запчасти для отечественных авто, Ремонт стартеров и генераторов, Ремонт ходовой части автомобиля, Шиномонтаж, Развал-схождение, Запчасти для иномарок, Хранение шин'
+            },
+            {
+                name: 'Люкс',
+                address: 'Донбасская, 6а',
+                lat: 56.289969, lon: 43.900818,
+                phone: '+7 (831) 283-83-87',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67385069',
+                services_list: 'Легковой автосервис, Кузовной ремонт, Ремонт ходовой части автомобиля, Ремонт дизельных двигателей, Ремонт бензиновых двигателей, Шиномонтаж, Развал-схождение, Ремонт выхлопных систем'
+            },
+            {
+                name: 'Восток-Авто',
+                address: 'Гагарина, 121Б к3',
+                lat: 56.2252044, lon: 43.9391225,
+                phone: '+7 (831) 228-09-00',
+                website: 'https://vostok-auto.ru/',
+                vk: 'https://vk.com/topic-240135406_67385093',
+                services_list: 'Легковой автосервис, Запчасти для иномарок, Автомобильные аккумуляторы, Автосигнализации, Автоэмали, Замена масла, Кузовной ремонт, Ремонт АКПП, Ремонт электронных систем авто, Компьютерная диагностика автомобилей, Ремонт стартеров и генераторов, Ремонт выхлопных систем, Установка и ремонт автостёкол, Ремонт бензиновых двигателей, Развал-схождение, Ремонт ходовой части автомобиля, Обслуживание автомобильных климатических систем, Ремонт дизельных двигателей, Ремонт МКПП, Шиномонтаж'
+            },
+            {
+                name: 'Автосервис (Гужевая)',
+                address: 'Гужевая, 20',
+                lat: 56.3032505, lon: 44.0274578,
+                phone: '+7 (831) 417-46-22',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67385101',
+                services_list: 'Легковой автосервис, Ремонт стартеров и генераторов, Ремонт ходовой части автомобиля, Ремонт бензиновых двигателей, Ремонт АКПП, Запчасти для иномарок, Автосигнализации, Компьютерная диагностика автомобилей, Развал-схождение, Ремонт выхлопных систем, Ремонт дизельных двигателей, Ремонт МКПП, Ремонт электронных систем авто, Отогрев автомобилей, Установка и ремонт автооптики, Автохимия'
+            },
+            {
+                name: 'Река',
+                address: 'Родниковая, 75',
+                lat: 56.313083, lon: 44.039151,
+                phone: '+7 (831) 410-88-44',
+                website: 'https://rekannov.ru/',
+                vk: 'https://vk.com/topic-240135406_67385107',
+                services_list: 'Легковой автосервис, Ремонт бензиновых двигателей, Компьютерная диагностика автомобилей, Развал-схождение, Ремонт ходовой части автомобиля'
+            },
+            {
+                name: 'Автотехцентр',
+                address: 'Комсомольская улица, 38а',
+                lat: 56.253792, lon: 43.850326,
+                phone: '+7 (831) 413-55-80',
+                website: 'https://autocentrenn.ru/',
+                vk: 'https://vk.com/topic-240135406_67385116',
+                services_list: 'Спецавтооборудование, Легковой автосервис, Ремонт стартеров и генераторов, Запчасти для иномарок, Запчасти для отечественных авто, Автоаксессуары, Автомобильные аккумуляторы, Автохимия, Автосигнализации, Автозвук, Шины и диски, Ремонт МКПП, Компьютерная диагностика автомобилей, Ремонт инжекторов, Ремонт выхлопных систем, Ремонт АКПП, Ремонт бензиновых двигателей, Ремонт ходовой части автомобиля, Шиномонтаж, Развал-схождение, Автомойки, Обслуживание автомобильных климатических систем, Замена масла, Ремонт дизельных двигателей'
+            },
+            {
+                name: 'БОРН',
+                address: 'Мончегорская, 12а к2',
+                lat: 56.2326532, lon: 43.8291876,
+                phone: '+7 (901) 248-11-07',
+                website: 'https://born-auto.ru/',
+                vk: 'https://vk.com/topic-240135406_67385121',
+                services_list: 'Легковой автосервис, Ремонт бензиновых двигателей, Ремонт стартеров и генераторов, Развал-схождение, Ремонт и тюнинг мототехники, Замена масла, Компьютерная диагностика автомобилей, Ремонт выхлопных систем, Ремонт ходовой части автомобиля, Кузовной ремонт'
+            },
+            {
+                name: 'CARDINAL Автосервис',
+                address: 'пр. Героев, 37/4',
+                lat: 56.3238213, lon: 43.8874141,
+                phone: '+7 (831) 429-09-09',
+                website: '',
+                vk: 'https://vk.com/topic-240135406_67385125',
+                services_list: 'Легковой автосервис, Запчасти для иномарок, Автоаксессуары, Автохимия'
+            },
+            {
+                name: 'БиБиоил',
+                address: 'Медицинская, 20',
+                lat: 56.280675, lon: 43.995928,
+                phone: '+7 (831) 280-51-60',
+                website: 'https://bibioil.ru',
+                vk: 'https://vk.com/topic-240135406_67385127',
+                services_list: 'Замена масла в двигателе (ДВС), Замена масла в АКПП / Вариатор и МКПП, Замена тормозной жидкости, Замена воздушного фильтра, Замена салонного фильтра, Замена масляного фильтра, Замена масла в редукторах / раздатках, Замена охлаждающей жидкости'
+            },
+            {
+                name: 'Бахпробег',
+                address: 'Шлиссельбургская улица, 23Д',
+                lat: 56.2952938, lon: 43.9254008,
+                phone: '+7 (831) 423-23-61',
+                website: 'https://bahprobeg.ru',
+                vk: 'https://vk.com/topic-240135406_67385131',
+                services_list: 'Замена масла, Автохимия, Компьютерная диагностика автомобилей, Обслуживание автомобильных климатических систем'
+            },
+            {
+                name: 'Карданная №1',
+                address: 'Вторчермета, 7А/1',
+                lat: 56.3062697, lon: 43.857854,
+                phone: '+7 (987) 742-88-68',
+                website: 'https://kardan1.ru/',
+                vk: 'https://vk.com/topic-240135406_67318983',
+                services_list: 'Ремонт карданных валов'
+            },
+            {
+                name: 'Селект Сервис',
+                address: 'Прямая улица, 9',
+                lat: 56.274559, lon: 43.888738,
+                phone: '+7 (920) 293-55-55',
+                website: 'https://select-sto.ru/',
+                vk: 'https://vk.com/topic-240135406_67318894',
+                services_list: 'Легковой автосервис, Кузовной ремонт, Ремонт ходовой части автомобиля, Ремонт бензиновых двигателей, Сварочные работы, Ремонт инжекторов, Ремонт стартеров и генераторов, Запчасти для иномарок, Запчасти для отечественных авто, Контрактные автозапчасти, Развал-схождение, Обслуживание автомобильных климатических систем, Автосигнализации, Автозвук'
+            }
+        ];
+
+        let map, markersCluster;
+
+        function initMap() {
+            try {
+                map = L.map('map', { attributionControl: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+                L.tileLayer(
+                    `https://tiles.api-maps.yandex.ru/v1/tiles/?apikey=${YANDEX_API_KEY}&lang=ru_RU&l=map&x={x}&y={y}&z={z}`,
+                    { maxZoom: 19, attribution: '<a href="https://yandex.ru/legal/maps_api/" target="_blank">Условия Яндекс Карт</a>' }
+                ).addTo(map);
+
+                markersCluster = L.markerClusterGroup({
+                    maxClusterRadius: 50,
+                    spiderfyOnMaxZoom: true,
+                    showCoverageOnHover: false,
+                    iconCreateFunction: function(cluster) {
+                        const count = cluster.getChildCount();
+                        const size = count > 30 ? 44 : count > 15 ? 40 : 36;
+                        const fs = count > 30 ? 15 : count > 15 ? 14 : 13;
+                        return L.divIcon({
+                            html: `<div style="background:#e94560;color:#fff;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${fs}px;border:3px solid #fff;">${count}</div>`,
+                            className: '', iconSize: [size, size], iconAnchor: [size/2, size/2]
+                        });
+                    }
+                });
+
+                services.forEach(service => {
+                    const icon = L.divIcon({
+                        html: '<div style="background:#e94560;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [16, 16], iconAnchor: [8, 8], className: ''
+                    });
+
+                    const servicesTags = service.services_list
+                        ? service.services_list.split(', ').map(s => `<span>${s.trim()}</span>`).join('')
+                        : '';
+
+                    const popupContent = `
+                        <div class="custom-popup" style="min-width:240px;">
+                            <div class="popup-name">${service.name}</div>
+                            <div class="popup-address">📍 ${service.address}</div>
+                            ${service.phone ? `<div class="popup-phone"><a href="tel:${service.phone.replace(/[\s\-\(\)]/g,'')}">📞 ${service.phone}</a></div>` : ''}
+                            ${servicesTags ? `<div class="popup-services">${servicesTags}</div>` : ''}
+                            <div class="popup-links">
+                                ${service.vk ? `<a href="${service.vk}" target="_blank" rel="noopener" class="popup-link popup-link-vk">💬 Обсудить в ВК</a>` : ''}
+                                ${service.website ? `<a href="${service.website}" target="_blank" rel="noopener" class="popup-link popup-link-web">🌐 Сайт</a>` : ''}
+                            </div>
+                        </div>
+                    `;
+
+                    const marker = L.marker([service.lat, service.lon], { icon })
+                        .bindPopup(popupContent, { maxWidth: 320, className: 'custom-popup' });
+                    markersCluster.addLayer(marker);
+                });
+
+                map.addLayer(markersCluster);
+
+                // Геолокация — показываем метку, но НЕ смещаем центр карты
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            const userIcon = L.divIcon({
+                                html: '<div style="background:#4CAF50;width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px rgba(76,175,80,0.6);"></div>',
+                                iconSize: [16, 16], iconAnchor: [8, 8], className: ''
+                            });
+                            L.marker([pos.coords.latitude, pos.coords.longitude], { icon: userIcon })
+                                .bindPopup('📍 Вы здесь')
+                                .addTo(map);
+                            // Центр карты не меняем — остаёмся в Нижнем Новгороде
+                        },
+                        () => {},
+                        { timeout: 5000 }
+                    );
+                }
+
+                document.getElementById('serviceCount').textContent = services.length;
+            } catch (error) {
+                console.error('Ошибка загрузки карты:', error);
+                document.getElementById('map').innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Не удалось загрузить карту.<br>Проверьте подключение к интернету.</div>';
+            }
         }
 
-        if (!localStorage.getItem('cookiesAccepted')) {
-            setTimeout(() => notice.classList.add('show'), 1000);
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            console.log('🚗 ГдеСервис — Нижний Новгород');
+            console.log(`📌 ${services.length} автосервисов на карте (данные OSM)`);
+        });
     </script>
-
 </body>
 </html>
