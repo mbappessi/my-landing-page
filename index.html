@@ -1,2 +1,148 @@
-<a href="agreement.html" target="_blank">Пользовательское соглашение</a>
-<a href="privacy.html" target="_blank">Политика конфиденциальности</a>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ГдеСервис — автосервисы Нижнего Новгорода</title>
+    <meta name="description" content="Автосервисы Нижнего Новгорода на карте: адреса, телефоны, услуги, сайты.">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%);color:#fff}
+        
+        /* Хедер */
+        .header{position:absolute;top:0;left:0;right:0;z-index:1000;padding:8px 16px;background:rgba(15,12,41,0.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(233,69,96,0.2);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+        .logo{display:flex;align-items:center;gap:8px}.logo-text{font-size:22px;font-weight:700;letter-spacing:-1px}.logo-text span:first-child{color:#fff}.logo-text span:last-child{color:#e94560}.tagline{font-size:11px;color:#a0a0c0}
+        .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;justify-content:flex-end}
+        .header-search{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border-radius:50px;padding:3px 4px 3px 14px;border:1px solid rgba(255,255,255,0.08);transition:all 0.3s ease;max-width:320px;flex:1;min-width:160px}
+        .header-search:focus-within{border-color:rgba(233,69,96,0.4);background:rgba(255,255,255,0.1)}
+        .header-search input{background:transparent;border:none;color:#fff;font-size:14px;outline:none;width:100%;padding:8px 0}
+        .header-search input::placeholder{color:#666}.header-search .search-icon{color:#666;font-size:16px}
+        .header-count{text-align:right;line-height:1.2;font-size:12px;white-space:nowrap}.header-count span{font-size:15px;font-weight:700;color:#e94560}
+        .btn-add{background:linear-gradient(90deg,#e94560,#ff5e7a);color:#fff;padding:6px 14px;border-radius:50px;text-decoration:none;font-weight:600;font-size:12px;box-shadow:0 4px 15px rgba(233,69,96,0.4);transition:all 0.3s ease;white-space:nowrap}
+        .btn-add:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(233,69,96,0.5)}
+        
+        /* Панель фильтров — центрирована и короче */
+        .controls{position:absolute;top:66px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(26,26,46,0.96);backdrop-filter:blur(12px);border-radius:14px;padding:10px 18px;box-shadow:0 4px 20px rgba(0,0,0,0.4);transition:all 0.45s cubic-bezier(0.4,0,0.2,1);overflow:hidden;max-height:48px;border:1px solid rgba(255,255,255,0.06);cursor:pointer;width:auto;min-width:280px;max-width:90%}
+        .controls.expanded{max-height:620px;padding-bottom:18px;max-width:95%;width:auto}
+        .controls .filters-wrapper{transition:all 0.45s cubic-bezier(0.4,0,0.2,1);opacity:0;max-height:0;overflow:hidden}
+        .controls.expanded .filters-wrapper{opacity:1;max-height:560px}
+        .controls-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:2px 0}
+        .controls-header .label{font-size:13px;color:#aaa;font-weight:600;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer;padding:2px 0}
+        .controls-header .label .badge{background:rgba(233,69,96,0.25);color:#e94560;font-size:10px;padding:1px 8px;border-radius:10px;font-weight:600;min-width:18px;text-align:center}
+        .controls-header .hint{font-size:10px;color:#555;font-weight:400;white-space:nowrap}
+        .filters{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
+        .filter-tag{padding:4px 12px;background:rgba(233,69,96,0.12);color:#ff99aa;border-radius:30px;font-size:11px;cursor:pointer;transition:all 0.2s;white-space:nowrap;user-select:none}
+        .filter-tag:hover{background:rgba(233,69,96,0.25)}.filter-tag.active{background:#e94560;color:#fff}
+        .extra-filters{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;justify-content:center}
+        .btn-reset{background:#333;color:#ccc;padding:4px 12px;border-radius:30px;font-size:11px;cursor:pointer;border:none;transition:0.2s}
+        .btn-reset:hover{background:#555;color:#fff}
+        
+        /* Карта */
+        #map{width:100%;height:100%;position:absolute;top:0;left:0;z-index:1}
+        .leaflet-control-attribution{display:none!important}
+        
+        /* Зум-контролы в левый нижний угол */
+        .leaflet-control-zoom{position:absolute!important;bottom:80px!important;left:14px!important;top:auto!important;right:auto!important}
+        .leaflet-control-zoom a{background:rgba(26,26,46,0.9)!important;color:#fff!important;border-color:rgba(255,255,255,0.1)!important}
+        .leaflet-control-zoom a:hover{background:rgba(233,69,96,0.4)!important}
+        
+        /* Нижний бар */
+        .footer-copyright{position:absolute;bottom:42px;left:50%;transform:translateX(-50%);z-index:999;color:rgba(255,255,255,0.8);font-size:12px;letter-spacing:1px;white-space:nowrap;pointer-events:none;user-select:none;font-weight:600;text-shadow:0 2px 12px rgba(0,0,0,0.9),0 2px 4px rgba(0,0,0,0.7);font-family:'Inter',system-ui,-apple-system,sans-serif}
+        .footer-bar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:999;display:flex;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);padding:4px 16px;border-radius:30px;border:1px solid rgba(255,255,255,0.05);pointer-events:none;flex-wrap:nowrap;max-width:95%;overflow-x:auto}
+        .footer-bar::-webkit-scrollbar{display:none}.footer-bar{-ms-overflow-style:none;scrollbar-width:none}
+        .footer-bar a{pointer-events:auto;color:rgba(255,255,255,0.35);text-decoration:none;font-size:9px;transition:color 0.2s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;line-height:1.2}
+        .footer-bar a:hover{color:rgba(255,255,255,0.65)}
+        .footer-bar .sep{color:rgba(255,255,255,0.08);font-size:8px;pointer-events:none;user-select:none;line-height:1}
+        
+        /* Попапы */
+        .leaflet-popup-content-wrapper{border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.5);background:#1a1633;color:#fff}.leaflet-popup-tip{background:#1a1633}
+        .popup-name{font-size:17px;font-weight:700;margin-bottom:4px;color:#fff}.popup-addr{font-size:13px;color:#a0a0c0;margin-bottom:8px}.popup-phone a{color:#e94560;text-decoration:none;font-weight:600;display:block;margin:3px 0}
+        .popup-services{margin:10px 0;display:flex;flex-wrap:wrap;gap:5px}.popup-services span{background:rgba(233,69,96,0.15);color:#ff8a9e;padding:2px 9px;border-radius:20px;font-size:12px}
+        .popup-links{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}.popup-link{padding:6px 14px;border-radius:50px;text-decoration:none;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;transition:all 0.3s ease}
+        .popup-link-vk{background:linear-gradient(90deg,#e94560,#ff5e7a);color:#fff!important;box-shadow:0 4px 15px rgba(233,69,96,0.4)}.popup-link-vk:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(233,69,96,0.5)}
+        .popup-link-web{background:rgba(255,255,255,0.1);color:#aaa}.popup-link-web:hover{background:rgba(255,255,255,0.2);color:#fff}
+        
+        /* Адаптив */
+        @media(max-width:700px){
+            .header{flex-direction:column;align-items:stretch;gap:3px;padding:5px 10px}
+            .logo{justify-content:center;flex-wrap:wrap}.logo-text{font-size:18px}.tagline{font-size:9px;display:block;text-align:center}
+            .header-right{justify-content:center;width:100%;gap:4px;flex-wrap:wrap}
+            .header-search{max-width:100%;min-width:100%;padding:2px 4px 2px 10px;order:3}
+            .header-search input{font-size:12px;padding:5px 0}
+            .header-count{font-size:10px;order:1}.header-count span{font-size:13px}
+            .btn-add{font-size:10px;padding:5px 10px;order:2}
+            .controls{top:60px;max-height:44px;padding:8px 12px 6px;border-radius:12px;min-width:auto;width:95%;left:2.5%;transform:translateX(0)}
+            .controls.expanded{max-height:520px;padding:8px 12px 12px;width:95%;left:2.5%}
+            .controls-header .label{font-size:12px}.controls-header .hint{font-size:9px}.controls-header .label .badge{font-size:9px;padding:0 6px}
+            .filter-tag{font-size:10px;padding:3px 9px}.extra-filters .filter-tag{font-size:10px;padding:3px 9px}.btn-reset{font-size:10px;padding:3px 10px}
+            .controls .filters-wrapper{max-height:0;opacity:0}.controls.expanded .filters-wrapper{max-height:420px;opacity:1}
+            .footer-copyright{font-size:10px;bottom:36px;letter-spacing:0.5px;color:rgba(255,255,255,0.7)}
+            .footer-bar{gap:8px;padding:3px 10px;bottom:10px;border-radius:20px}.footer-bar a{font-size:7px}.footer-bar .sep{font-size:7px}
+            .leaflet-control-zoom{bottom:70px!important;left:10px!important}
+        }
+        @media(max-width:400px){
+            .header-right{gap:3px}.header-search{padding:2px 3px 2px 8px}.header-search input{font-size:11px;padding:4px 0}
+            .controls{top:56px;max-height:40px;padding:6px 8px 4px;width:96%;left:2%}
+            .controls.expanded{max-height:450px;padding:6px 8px 10px;width:96%;left:2%}
+            .controls-header .label{font-size:11px}.controls-header .hint{font-size:8px}
+            .footer-copyright{font-size:9px;bottom:32px;letter-spacing:0.3px;color:rgba(255,255,255,0.65)}
+            .footer-bar{gap:6px;padding:2px 8px;bottom:8px;border-radius:16px}.footer-bar a{font-size:6px}.footer-bar .sep{font-size:6px}
+            .leaflet-control-zoom{bottom:60px!important;left:8px!important}
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><div class="logo-text"><span>Где</span><span>Сервис</span></div><div class="tagline">Поиск и выбор автосервисов по отзывам</div></div>
+        <div class="header-right">
+            <div class="header-search"><span class="search-icon">🔍</span><input type="text" id="searchInput" placeholder="Название, адрес или услуга..."></div>
+            <div class="header-count">Нижний Новгород<br><span id="serviceCounter">0 СТО</span></div>
+            <a href="https://vk.com/gdeservic" target="_blank" rel="noopener noreferrer" class="btn-add">Добавить СТО</a>
+        </div>
+    </div>
+    <div class="controls" id="controls">
+        <div class="controls-header" id="controlsHeader">
+            <span class="label">📂 Фильтры<span class="badge" id="filterCount">0</span></span>
+            <span class="hint">Нажми или начни вводить</span>
+        </div>
+        <div class="filters-wrapper" id="filtersWrapper">
+            <div class="filters" id="mainFilters"></div>
+            <div class="extra-filters" id="extraFilters">
+                <div class="filter-tag" id="hasSite">🌐 Есть сайт</div>
+                <div class="filter-tag" id="hasVK">💬 Есть отзывы VK</div>
+                <button class="btn-reset" id="resetBtn">Сбросить фильтры</button>
+            </div>
+        </div>
+    </div>
+    <div id="map"></div>
+    <div class="footer-copyright">© ГдеСервис 2026</div>
+    <div class="footer-bar">
+        <a href="agreement.html" target="_blank">Пользовательское соглашение</a>
+        <span class="sep">|</span>
+        <a href="privacy.html" target="_blank">Политика конфиденциальности</a>
+        <span class="sep">|</span>
+        <a href="https://leafletjs.com/" target="_blank">Leaflet</a>
+        <span class="sep">|</span>
+        <a href="https://yandex.ru/legal/maps_api/" target="_blank">Яндекс Карты</a>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="services.js"></script>
+    <script>
+        var map,lg,at=new Set(),hf=false,vf=false,ht=null,init=false;
+        function _esc(s){if(!s)return'';var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML;}
+        function _upd(c){document.getElementById('serviceCounter').textContent=c+' СТО';}
+        function _fit(){if(!window.SERVICES||window.SERVICES.length===0){map.setView([56.32,44.00],12);return;}var c=window.SERVICES.map(function(s){return s.t;});if(c.length)map.fitBounds(c,{padding:[50,50],maxZoom:14});}
+        function _hide(){if(ht)clearTimeout(ht);ht=setTimeout(function(){var c=document.getElementById('controls'),si=document.getElementById('searchInput');if(si.value.trim()===''&&window.innerWidth<=700)c.classList.remove('expanded');},4000);}
+        function _render(srv){lg.clearLayers();if(!srv||srv.length===0){_upd(0);return;}var crds=[];srv.forEach(function(s){var lt=s.t[0],ln=s.t[1];crds.push([lt,ln]);var tg=s.d?s.d.split(', ').map(function(t){return'<span>'+_esc(t)+'</span>';}).join(''):'';var ph='<div style="min-width:220px;"><div class="popup-name">'+_esc(s.n)+'</div><div class="popup-addr">📍 '+_esc(s.a)+'</div>'+(s.p?'<div class="popup-phone"><a href="tel:'+s.p.replace(/[\s\-\(\)]/g,'')+'">📞 '+_esc(s.p)+'</a></div>':'')+(tg?'<div class="popup-services">'+tg+'</div>':'')+'<div class="popup-links">'+(s.vk?'<a href="'+s.vk+'" target="_blank" class="popup-link popup-link-vk">⭐ Отзывы ВК</a>':'')+(s.w?'<a href="'+s.w+'" target="_blank" class="popup-link popup-link-web">🌐 Сайт</a>':'')+'</div></div>';var mk=L.marker([lt,ln],{icon:L.divIcon({html:'<div style="background:#e94560;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).bindPopup(ph,{maxWidth:300});lg.addLayer(mk);});if(crds.length>0)map.fitBounds(crds,{padding:[30,30],maxZoom:14});_upd(srv.length);}
+        function _filter(){if(!window.SERVICES||window.SERVICES.length===0){_render([]);return;}var si=document.getElementById('searchInput'),q=si.value.toLowerCase().trim();var f=window.SERVICES.filter(function(s){var ms=!q||s.n.toLowerCase().includes(q)||(s.a&&s.a.toLowerCase().includes(q))||(s.d&&s.d.toLowerCase().includes(q));var mt=at.size===0||Array.from(at).every(function(tg){return s.d&&s.d.includes(tg);});var msite=!hf||!!s.w;var mvk=!vf||!!s.vk;return ms&&mt&&msite&&mvk;});_render(f);}
+        function _renderTags(){var c=document.getElementById('mainFilters');c.innerHTML='';if(!window.SERVICES||window.SERVICES.length===0){var em=document.createElement('div');em.style.cssText='color:#555;font-size:12px;padding:4px 0;';em.textContent='Загрузите данные сервисов';c.appendChild(em);return;}var tc={};window.SERVICES.forEach(function(s){if(s.d){s.d.split(', ').forEach(function(tg){tg=tg.trim();tc[tg]=(tc[tg]||0)+1;});}});var st=Object.keys(tc).sort(function(a,b){return tc[b]-tc[a];});var tt=st.slice(0,12);tt.forEach(function(tg){var el=document.createElement('div');el.className='filter-tag';el.textContent=tg;el.dataset.tag=tg;el.addEventListener('click',function(e){e.stopPropagation();var tn=this.dataset.tag;if(at.has(tn)){at.delete(tn);this.classList.remove('active');}else{at.add(tn);this.classList.add('active');}_filter();_updCount();});c.appendChild(el);});}
+        function _updCount(){var t=at.size+(hf?1:0)+(vf?1:0);document.getElementById('filterCount').textContent=t;}
+        function _togSpec(t){var el=document.getElementById(t==='site'?'hasSite':'hasVK');if(t==='site'){hf=!hf;el.classList.toggle('active',hf);}else{vf=!vf;el.classList.toggle('active',vf);}_updCount();_filter();}
+        function _reset(e){if(e)e.stopPropagation();at.clear();hf=false;vf=false;document.querySelectorAll('.filter-tag.active').forEach(function(el){el.classList.remove('active');});document.querySelectorAll('.extra-filters .filter-tag.active').forEach(function(el){el.classList.remove('active');});document.getElementById('searchInput').value='';document.getElementById('filterCount').textContent='0';_filter();if(window.innerWidth<=700)document.getElementById('controls').classList.remove('expanded');}
+        function _initPanel(){var c=document.getElementById('controls'),ch=document.getElementById('controlsHeader'),si=document.getElementById('searchInput');ch.addEventListener('click',function(e){if(e.target.closest('.filter-tag')||e.target.closest('.btn-reset'))return;c.classList.toggle('expanded');});si.addEventListener('input',function(){if(!c.classList.contains('expanded'))c.classList.add('expanded');_filter();_hide();});c.addEventListener('click',function(e){if(e.target.closest('.filter-tag')||e.target.closest('.btn-reset'))return;if(e.target.closest('.controls-header'))return;c.classList.toggle('expanded');});}
+        function _init(){if(init)return;init=true;if(!window.SERVICES||window.SERVICES.length===0){_render([]);_renderTags();return;}_renderTags();_render(window.SERVICES);_fit();_updCount();}
+        window.addEventListener('DOMContentLoaded',function(){if(typeof L==='undefined'){document.getElementById('map').innerHTML='<div style="padding:80px 20px;text-align:center;color:#999;font-size:18px;">Не удалось загрузить карту</div>';return;}map=L.map('map',{zoomControl:true,attributionControl:false,center:[56.32,44.00],zoom:12});L.tileLayer('https://tiles.api-maps.yandex.ru/v1/tiles?projection=web_mercator&apikey=8f80bbc1-6346-4033-9f1a-30cdd4f1a211&x={x}&y={y}&z={z}&lang=ru_RU&l=map&scale=1',{maxZoom:19}).addTo(map);lg=L.layerGroup().addTo(map);_initPanel();document.getElementById('resetBtn').addEventListener('click',_reset);document.getElementById('hasSite').addEventListener('click',function(e){e.stopPropagation();_togSpec('site');});document.getElementById('hasVK').addEventListener('click',function(e){e.stopPropagation();_togSpec('vk');});if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(pos){L.marker([pos.coords.latitude,pos.coords.longitude],{icon:L.divIcon({html:'<div style="background:#2196F3;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 10px rgba(33,150,243,0.6);"></div>',iconSize:[14,14],iconAnchor:[7,7],className:''})}).bindPopup('📍 Вы здесь').addTo(map);},function(){},{timeout:5000});}_init();console.log('✅ Загружено');});
+    </script>
+</body>
+</html>
